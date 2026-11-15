@@ -1,10 +1,13 @@
-
 import os
 import smtplib
+import logging
 from email.message import EmailMessage
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 
 def send_otp_email(to_email: str, otp: str) -> bool:
@@ -55,7 +58,10 @@ Trialshopy Team
         return True
 
     except (smtplib.SMTPException, OSError) as error:
+        # Log the FULL traceback for debugging
+        logger.exception("Brevo OTP email sending failed")
         raise RuntimeError("Unable to send verification email.") from error
+
 
 def send_password_reset_email(to_email: str, otp: str) -> bool:
     smtp_host = os.getenv("SMTP_HOST")
@@ -99,4 +105,6 @@ Trialshopy Team
         return True
 
     except (smtplib.SMTPException, OSError) as error:
+        # Log the FULL traceback for debugging
+        logger.exception("Brevo password reset email sending failed")
         raise RuntimeError("Unable to send password reset email.") from error
