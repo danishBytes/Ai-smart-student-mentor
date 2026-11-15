@@ -29,3 +29,14 @@ build/
 # Operating System
 .DS_Store
 Thumbs.db
+# Frontend environment files
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Vercel
+.vercel/

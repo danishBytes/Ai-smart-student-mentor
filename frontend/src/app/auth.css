@@ -1,0 +1,421 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+.auth-page {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100svh;
+  background: #080611;
+  color: #fff;
+  font-family: Arial, Helvetica, sans-serif;
+  overflow: hidden;
+}
+
+.auth-layout {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100svh;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  background: #100B1D;
+}
+
+/* WELCOME PANEL */
+
+.auth-welcome {
+  position: relative;
+  min-width: 0;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  padding: clamp(35px, 7vw, 100px);
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(135deg, #7C3AED, #5420A8 65%, #32116F);
+}
+
+.register-layout .auth-welcome {
+  order: 1;
+  justify-content: flex-start;
+  clip-path: polygon(0 0, 100% 0, 76% 100%, 0 100%);
+  animation: registerReveal 1s cubic-bezier(.65,0,.35,1) both;
+}
+
+.login-layout .auth-welcome {
+  order: 2;
+  justify-content: flex-end;
+  clip-path: polygon(24% 0, 100% 0, 100% 100%, 0 100%);
+  animation: loginReveal 1s cubic-bezier(.65,0,.35,1) both;
+}
+
+/* BACKGROUND EFFECTS */
+
+.auth-welcome::before,
+.auth-welcome::after {
+  content: "";
+  position: absolute;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.auth-welcome::before {
+  width: 500px;
+  height: 500px;
+  top: -220px;
+  left: -180px;
+}
+
+.auth-welcome::after {
+  width: 650px;
+  height: 650px;
+  bottom: -430px;
+  right: -220px;
+}
+
+/* WELCOME CONTENT */
+
+.auth-welcome-content {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  max-width: 440px;
+  animation: contentEnter 1s ease both;
+}
+
+.register-layout .auth-welcome-content {
+  margin-right: 10%;
+}
+
+.login-layout .auth-welcome-content {
+  margin-left: 10%;
+}
+
+/* BRAND */
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: clamp(50px, 9vh, 95px);
+}
+
+.brand-mark {
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  border-radius: 17px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: #6955E8;
+  font-size: 32px;
+  font-weight: 900;
+  box-shadow: 0 8px 25px rgba(0,0,0,.2);
+}
+
+.brand-name {
+  font-size: clamp(25px, 3vw, 34px);
+  font-weight: 800;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+
+.auth-welcome h1 {
+  font-size: clamp(36px, 4vw, 56px);
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 0 0 22px;
+  letter-spacing: -1px;
+  overflow-wrap: break-word;
+}
+
+.auth-welcome p {
+  max-width: 390px;
+  font-size: clamp(15px, 1.3vw, 18px);
+  line-height: 1.9;
+  color: #E9D5FF;
+  margin: 0;
+}
+
+/* FORM PANEL */
+
+.auth-form-panel {
+  order: 2;
+  min-width: 0;
+  min-height: 100%;
+  background: #100B1D;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: clamp(30px, 6vw, 90px);
+}
+
+.login-layout .auth-form-panel {
+  order: 1;
+}
+
+.auth-form {
+  width: 100%;
+  max-width: 420px;
+  animation: formEnter .9s ease both;
+}
+
+.auth-form h2 {
+  font-size: clamp(32px, 3vw, 42px);
+  font-weight: 800;
+  margin: 0 0 12px;
+}
+
+.auth-subtitle {
+  color: #AFA5C3;
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0 0 42px;
+}
+
+.auth-field {
+  margin-bottom: 26px;
+}
+
+.auth-field label {
+  display: block;
+  color: #E9E3F5;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.auth-field input {
+  width: 100%;
+  height: 48px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #625675;
+  color: #fff;
+  font-size: 15px;
+  padding: 10px 2px;
+  outline: none;
+  color-scheme: dark;
+  transition: border-color .3s, box-shadow .3s;
+}
+
+.auth-field input:focus {
+  border-color: #A78BFA;
+  box-shadow: 0 2px 0 rgba(167,139,250,.2);
+}
+
+.auth-field input::placeholder {
+  color: #817791;
+}
+
+/* ========================================================
+   FIX: HIDE BROWSER'S NATIVE PASSWORD REVEAL BUTTON
+   ======================================================== */
+/* Hide for Edge */
+.auth-field input::-ms-reveal,
+.auth-field input::-ms-clear {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Hide for Chrome / Safari / newer browsers */
+.auth-field input::-webkit-credentials-auto-fill-button,
+.auth-field input::-webkit-strong-password-auto-fill-button,
+.auth-field input::-webkit-contacts-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+}
+
+/* Hide the password reveal icon (some Chromium versions) */
+.auth-field input[type="password"]::-webkit-textfield-decoration-container {
+  visibility: hidden;
+}
+.auth-field input[type="password"]::-webkit-reveal-button {
+  display: none !important;
+}
+/* ======================================================== */
+
+.password-wrap {
+  position: relative;
+}
+
+.password-wrap input {
+  padding-right: 40px;
+}
+
+/* UPDATED: Ensure only one custom eye icon shows */
+.password-toggle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #A78BFA;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: color 0.2s;
+  z-index: 10;
+}
+
+.password-toggle:hover {
+  color: #fff;
+}
+
+/* BUTTON */
+
+.auth-button {
+  width: 100%;
+  min-height: 54px;
+  margin-top: 12px;
+  border: 1px solid #A78BFA;
+  border-radius: 35px;
+  background: linear-gradient(100deg, #7C3AED, #5420A8);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 25px rgba(124,58,237,.25);
+  transition: transform .3s, box-shadow .3s;
+}
+
+.auth-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(124,58,237,.45);
+}
+
+.auth-button:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* LOGIN / REGISTER LINK */
+
+.auth-switch {
+  margin-top: 30px;
+  text-align: center;
+  color: #B5ABC7;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.auth-switch a {
+  color: #A78BFA;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color .2s;
+}
+
+.auth-switch a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+/* API RESPONSE MESSAGE */
+
+.auth-message {
+  margin-top: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #FDA4AF;
+  overflow-wrap: anywhere;
+}
+
+.auth-message.success {
+  color: #86EFAC;
+}
+
+/* ANIMATIONS */
+
+@keyframes contentEnter {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes formEnter {
+  from { opacity: 0; transform: translateX(25px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes registerReveal {
+  from { clip-path: polygon(0 0, 78% 0, 54% 100%, 0 100%); }
+  to { clip-path: polygon(0 0, 100% 0, 76% 100%, 0 100%); }
+}
+
+@keyframes loginReveal {
+  from { clip-path: polygon(46% 0, 100% 0, 100% 100%, 22% 100%); }
+  to { clip-path: polygon(24% 0, 100% 0, 100% 100%, 0 100%); }
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 850px) {
+  .auth-layout {
+    grid-template-columns: 1fr;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .auth-welcome,
+  .register-layout .auth-welcome,
+  .login-layout .auth-welcome {
+    order: 1;
+    min-height: 280px;
+    padding: 35px 28px;
+    clip-path: none;
+    animation: contentEnter .8s ease both;
+  }
+
+  .auth-form-panel,
+  .register-layout .auth-form-panel,
+  .login-layout .auth-form-panel {
+    order: 2;
+    min-height: 550px;
+    padding: 45px 28px;
+  }
+
+  .auth-welcome-content,
+  .register-layout .auth-welcome-content,
+  .login-layout .auth-welcome-content {
+    max-width: 550px;
+    margin: 0;
+  }
+
+  .auth-brand { margin-bottom: 30px; }
+  .auth-welcome h1 { font-size: 36px; }
+  .auth-welcome p { font-size: 15px; }
+}
+
+@media (max-width: 480px) {
+  .auth-welcome { min-height: 250px !important; padding: 28px 22px !important; }
+  .auth-form-panel { padding: 35px 22px !important; }
+  .brand-mark { width: 46px; height: 46px; font-size: 25px; }
+  .brand-name { font-size: 24px; }
+  .auth-form h2 { font-size: 30px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
