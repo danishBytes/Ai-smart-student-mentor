@@ -27,7 +27,8 @@ from app.schemas.auth import (
     VerifyEmailRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
-    GoogleLoginRequest
+    GoogleLoginRequest,
+    RefreshTokenRequest
 )
 
 from app.services.otp_service import (
@@ -47,6 +48,7 @@ from app.services.email_service import (
 
 from app.services.google_auth_service import verify_google_token
 
+
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"]
@@ -58,7 +60,6 @@ router = APIRouter(
 # --------------------------------------------------
 
 def create_user_tokens(db: Session, user: User):
-
     access_token = create_access_token(str(user.id))
     refresh_token = generate_refresh_token()
 
@@ -71,7 +72,6 @@ def create_user_tokens(db: Session, user: User):
     try:
         db.add(refresh_session)
         db.commit()
-
     except Exception:
         db.rollback()
         raise HTTPException(
@@ -87,6 +87,112 @@ def create_user_tokens(db: Session, user: User):
 
 
 # --------------------------------------------------
+# REFRESH ACCESS TOKEN
+# --------------------------------------------------
+
+@router.post("/refresh")
+def refresh_access_token(
+    request: RefreshTokenRequest,
+    db: Session = Depends(get_db)
+):
+    now = datetime.now(timezone.utc)
+    incoming_hash = hash_refresh_token(request.refresh_token)
+
+    session = db.query(RefreshSession).filter(
+        RefreshSession.token_hash == incoming_hash
+    ).with_for_update().first()
+
+    if (
+        not session
+        or session.revoked_at is not None
+        or session.expires_at <= now
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token"
+        )
+
+    user = db.query(User).filter(
+        User.id == session.user_id
+    ).first()
+
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User account is unavailable"
+        )
+
+    new_access_token = create_access_token(str(user.id))
+    new_refresh_token = generate_refresh_token()
+
+    session.revoked_at = now
+
+    new_session = RefreshSession(
+        user_id=user.id,
+        token_hash=hash_refresh_token(new_refresh_token),
+        expires_at=get_refresh_token_expiry()
+    )
+
+    try:
+        db.add(new_session)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to refresh authentication session"
+        )
+
+    return {
+        "access_token": new_access_token,
+        "refresh_token": new_refresh_token,
+        "token_type": "bearer"
+    }
+
+
+# --------------------------------------------------
+# LOGOUT USER (NEW ENDPOINT)
+# --------------------------------------------------
+
+@router.post("/logout")
+def logout_user(
+    request: RefreshTokenRequest,
+    db: Session = Depends(get_db)
+):
+    now = datetime.now(timezone.utc)
+
+    incoming_hash = hash_refresh_token(request.refresh_token)
+
+    session = db.query(RefreshSession).filter(
+        RefreshSession.token_hash == incoming_hash
+    ).with_for_update().first()
+
+    if (
+        not session
+        or session.revoked_at is not None
+        or session.expires_at <= now
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token"
+        )
+
+    try:
+        session.revoked_at = now
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to logout. Please try again."
+        )
+
+    return {
+        "message": "Logged out successfully"
+    }
+
+
+# --------------------------------------------------
 # REGISTER USER
 # --------------------------------------------------
 
@@ -98,7 +204,6 @@ def register_user(
     user_data: UserRegister,
     db: Session = Depends(get_db)
 ):
-
     existing_user = db.query(User).filter(
         User.email == user_data.email
     ).first()
@@ -131,7 +236,6 @@ def register_user(
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
-
     except IntegrityError:
         db.rollback()
         raise HTTPException(
@@ -142,20 +246,16 @@ def register_user(
     try:
         otp = create_otp(db, new_user.id)
         send_otp_email(new_user.email, otp)
-
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=str(error)
         )
-
     except RuntimeError:
         db.query(EmailVerification).filter(
             EmailVerification.user_id == new_user.id
         ).delete(synchronize_session=False)
-
         db.commit()
-
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
@@ -180,7 +280,6 @@ def verify_email(
     verification_data: VerifyEmailRequest,
     db: Session = Depends(get_db)
 ):
-
     user = db.query(User).filter(
         User.email == verification_data.email
     ).first()
@@ -230,7 +329,6 @@ def login_user(
     user_data: UserLogin,
     db: Session = Depends(get_db)
 ):
-
     user = db.query(User).filter(
         User.email == user_data.email
     ).first()
@@ -284,7 +382,6 @@ def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-
     user = db.query(User).filter(
         User.email == form_data.username
     ).first()
@@ -331,7 +428,6 @@ def resend_otp(
     email_data: EmailRequest,
     db: Session = Depends(get_db)
 ):
-
     user = db.query(User).filter(
         User.email == email_data.email
     ).first()
@@ -351,20 +447,16 @@ def resend_otp(
     try:
         otp = create_otp(db, user.id)
         send_otp_email(user.email, otp)
-
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=str(error)
         )
-
     except RuntimeError:
         db.query(EmailVerification).filter(
             EmailVerification.user_id == user.id
         ).delete(synchronize_session=False)
-
         db.commit()
-
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Unable to send OTP. Please try again later."
@@ -385,7 +477,6 @@ def forgot_password(
     request: ForgotPasswordRequest,
     db: Session = Depends(get_db)
 ):
-
     generic_response = {
         "message": (
             "If an eligible account exists, "
@@ -403,15 +494,12 @@ def forgot_password(
     try:
         otp = create_password_reset_otp(db, user.id)
         send_password_reset_email(user.email, otp)
-
     except ValueError:
         return generic_response
-
     except RuntimeError:
         db.query(PasswordReset).filter(
             PasswordReset.user_id == user.id
         ).delete(synchronize_session=False)
-
         db.commit()
         return generic_response
 
@@ -427,7 +515,6 @@ def reset_password(
     request: ResetPasswordRequest,
     db: Session = Depends(get_db)
 ):
-
     user = db.query(User).filter(
         User.email == request.email
     ).first()
@@ -438,7 +525,6 @@ def reset_password(
             detail="Invalid or expired password reset request."
         )
 
-    # Verify OTP
     success, message = verify_password_reset_otp(
         db,
         user.id,
@@ -452,17 +538,14 @@ def reset_password(
         )
 
     try:
-        # Update password hash
         user.hashed_password = hash_password(
             request.new_password
         )
 
-        # Delete used OTP
         db.query(PasswordReset).filter(
             PasswordReset.user_id == user.id
         ).delete(synchronize_session=False)
 
-        # Revoke existing refresh sessions
         now = datetime.now(timezone.utc)
 
         db.query(RefreshSession).filter(
@@ -474,10 +557,8 @@ def reset_password(
         )
 
         db.commit()
-
     except Exception:
         db.rollback()
-
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to reset password. Please try again."
@@ -500,28 +581,23 @@ def google_login(
     request: GoogleLoginRequest,
     db: Session = Depends(get_db)
 ):
-    # 1. Verify Google ID token
     try:
         google_user = verify_google_token(request.id_token)
-
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired Google token"
         )
-
     except RuntimeError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Google authentication is not configured"
         )
 
-    # 2. Extract verified identity
     google_sub = google_user["sub"]
     email = google_user["email"].strip().lower()
     full_name = google_user.get("name") or email.split("@")[0]
 
-    # 3. Find existing Google account
     user = db.query(User).filter(
         User.google_sub == google_sub
     ).first()
@@ -532,9 +608,7 @@ def google_login(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Account is inactive"
             )
-
     else:
-        # 4. Check whether this email already exists
         user = db.query(User).filter(
             User.email == email
         ).first()
@@ -546,20 +620,15 @@ def google_login(
                     detail="Account is inactive"
                 )
 
-            # Never link an email already connected to
-            # a different Google identity.
             if user.google_sub and user.google_sub != google_sub:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="This account is linked to another Google account"
                 )
 
-            # Google has verified ownership of this email.
             user.google_sub = google_sub
             user.is_verified = True
-
         else:
-            # 5. Create a new student account
             student_role = db.query(Role).filter(
                 Role.name == "student"
             ).first()
@@ -582,28 +651,22 @@ def google_login(
 
             db.add(user)
 
-        # 6. Save user or account linking
         try:
             db.commit()
             db.refresh(user)
-
         except IntegrityError:
             db.rollback()
-
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Account already exists or Google account is linked elsewhere"
             )
-
         except Exception:
             db.rollback()
-
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Unable to create Google login account"
             )
 
-    # 7. Generate existing Trialshopy JWT tokens
     tokens = create_user_tokens(db, user)
 
     return {

@@ -1,4 +1,3 @@
-
 import os
 import secrets
 import hashlib
@@ -10,7 +9,11 @@ from pwdlib import PasswordHash
 from dotenv import load_dotenv
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import (
+    OAuth2PasswordBearer,
+    HTTPBearer,
+    HTTPAuthorizationCredentials,
+)
 from jwt.exceptions import InvalidTokenError
 from sqlalchemy.orm import Session
 
@@ -109,21 +112,39 @@ def get_refresh_token_expiry() -> datetime:
 # AUTHENTICATION
 # --------------------------------------------------
 
+# 1. OAuth2 scheme (Used by Swagger for Username/Password)
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/token"
+    tokenUrl="/api/v1/auth/token",
+    auto_error=False
+)
+
+# 2. HTTP Bearer scheme (Used for manual JWT paste)
+bearer_scheme = HTTPBearer(
+    auto_error=False
 )
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    oauth_token: str | None = Depends(oauth2_scheme),
+    bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db)
 ):
-
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid or expired authentication token",
         headers={"WWW-Authenticate": "Bearer"}
     )
+
+    # Accept token from either authentication scheme
+    # HTTPBearer takes precedence if both are provided
+    token = (
+        bearer_credentials.credentials
+        if bearer_credentials
+        else oauth_token
+    )
+
+    if not token:
+        raise credentials_exception
 
     try:
         payload = jwt.decode(

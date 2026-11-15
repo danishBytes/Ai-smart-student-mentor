@@ -1,18 +1,18 @@
 
-"""add roles and user role
+"""create roles and users tables
 
 Revision ID: 84dde5c86487
 Revises:
-Create Date: 2026-11-14 12:35:53.197740
 """
 
+import uuid
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
-# revision identifiers, used by Alembic.
 revision: str = "84dde5c86487"
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
@@ -20,83 +20,52 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema."""
 
     # 1. Create roles table
     op.create_table(
         "roles",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("name", sa.String(length=50), nullable=False),
-        sa.PrimaryKeyConstraint("id"),
+        sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
+        sa.Column("name", sa.String(50), nullable=False),
         sa.UniqueConstraint("name"),
     )
 
-    op.create_index(
-        "ix_roles_id",
-        "roles",
-        ["id"],
-        unique=False,
-    )
+    op.create_index("ix_roles_id", "roles", ["id"], unique=False)
 
     # 2. Insert default roles
     connection = op.get_bind()
 
     connection.execute(
         sa.text("""
-            INSERT INTO roles (name)
-            VALUES ('student'), ('admin'), ('super_admin')
+            INSERT INTO roles (id, name)
+            VALUES
+                (1, 'student'),
+                (2, 'admin'),
+                (3, 'super_admin')
         """)
     )
 
-    # 3. Add role_id as nullable first
-    op.add_column(
+    # 3. Create users table
+    op.create_table(
         "users",
-        sa.Column("role_id", sa.Integer(), nullable=True),
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column("full_name", sa.String(100), nullable=False),
+        sa.Column("email", sa.String(255), nullable=False),
+        sa.Column("hashed_password", sa.String(255), nullable=True),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
+        sa.Column("is_verified", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("role_id", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(["role_id"], ["roles.id"]),
+        sa.UniqueConstraint("email"),
     )
 
-    # 4. Add foreign key
-    op.create_foreign_key(
-        "fk_users_role_id_roles",
-        "users",
-        "roles",
-        ["role_id"],
-        ["id"],
-    )
-
-    # 5. Assign existing users the student role
-    student_id = connection.execute(
-        sa.text("SELECT id FROM roles WHERE name = 'student'")
-    ).scalar_one()
-
-    connection.execute(
-        sa.text("""
-            UPDATE users
-            SET role_id = :student_id
-            WHERE role_id IS NULL
-        """),
-        {"student_id": student_id},
-    )
-
-    # 6. Make role_id mandatory
-    op.alter_column(
-        "users",
-        "role_id",
-        existing_type=sa.Integer(),
-        nullable=False,
-    )
+    op.create_index("ix_users_email", "users", ["email"], unique=True)
 
 
 def downgrade() -> None:
-    """Downgrade schema."""
 
-    op.drop_constraint(
-        "fk_users_role_id_roles",
-        "users",
-        type_="foreignkey",
-    )
-
-    op.drop_column("users", "role_id")
+    op.drop_index("ix_users_email", table_name="users")
+    op.drop_table("users")
 
     op.drop_index("ix_roles_id", table_name="roles")
-
     op.drop_table("roles")

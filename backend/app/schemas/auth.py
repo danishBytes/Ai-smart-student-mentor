@@ -44,3 +44,9 @@ class GoogleLoginRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     id_token: str = Field(min_length=1, max_length=8192)
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(
+        min_length=1,
+        max_length=512
+    )
