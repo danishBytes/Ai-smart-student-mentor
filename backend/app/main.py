@@ -66,3 +66,12 @@ async def health_check():
         "status": "healthy",
         "application": "Trialshopy AI Mentor"
     }
+
+
+# --------------------------------------------------
+# HEAD SUPPORT FOR MONITORING TOOLS
+# --------------------------------------------------
+
+@app.head("/health")
+async def health_check_head():
+    return None
